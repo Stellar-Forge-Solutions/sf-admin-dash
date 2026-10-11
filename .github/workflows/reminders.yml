@@ -1,0 +1,11 @@
+# Pings the reminder endpoint every ~10 minutes (GitHub may delay scheduled runs a few minutes).
+# Repo secrets: CRON_SECRET (same value as the Vercel env var) and ADMIN_DASH_URL (https://your-admin-site, no trailing slash)
+name: Review reminders
+on:
+  schedule: [{ cron: '*/10 * * * *' }]
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl -fsS -X POST -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "${{ secrets.ADMIN_DASH_URL }}/api/cron/reminders"
