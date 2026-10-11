@@ -20,3 +20,4 @@ Add GitHub secrets `CRON_SECRET` and `ADMIN_DASH_URL`. `.github/workflows/remind
 - `0002_billing_compat.sql` bill numbering, snapshots, printed-bill locks and storage buckets for the billing app.
 - `0003_expense.sql` Expense Tracker tables, per-shop sync from billing, per-product trials.
 Run order is automatic. Never edit an applied migration; add `0003_...`.
+
