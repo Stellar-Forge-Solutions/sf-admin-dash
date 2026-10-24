@@ -24,8 +24,8 @@ const PRODUCT_LABELS = {
 }
 
 export default function App() {
-  const [stage, setStage] = useState('password') // password | code | in
-  const [f, setF] = useState({ email: '', password: '', code: '' })
+  const [stage, setStage] = useState('password') // password | in
+  const [f, setF] = useState({ email: '', password: '' })
   const [msg, setMsg] = useState('')
   const [page, setPage] = useState('table') // 'review' | 'table' | 'analytics'
   const [reviewTab, setReviewTab] = useState('pending_review')
@@ -79,14 +79,9 @@ export default function App() {
 
   const login = async (e) => {
     e.preventDefault(); setMsg('')
-    const r = await post('/api/admin/login', stage === 'password' ? { step: 'password', email: f.email, password: f.password } : { step: 'code', email: f.email, code: f.code })
+    const r = await post('/api/admin/login', { email: f.email, password: f.password })
     if (!r.ok) return setMsg(r.error || 'Invalid details')
-    if (stage === 'password') {
-      setStage('code')
-      setMsg('A 6-digit code was sent to your email.')
-    } else {
-      reloadData()
-    }
+    reloadData()
   }
 
   const act = async (id, action) => {
@@ -197,12 +192,10 @@ export default function App() {
     return (
       <form className="box login" onSubmit={login}>
         <h2>Stellar <span style={{ color: 'var(--teal-d)' }}>Forge</span> Admin</h2>
-        <input type="email" placeholder="Email" value={f.email} onChange={set('email')} required disabled={stage === 'code'} />
-        {stage === 'password'
-          ? <input type="password" placeholder="Password" value={f.password} onChange={set('password')} required />
-          : <input inputMode="numeric" maxLength={6} placeholder="6-digit code from email" value={f.code} onChange={set('code')} required autoFocus />}
-        <button>{stage === 'password' ? 'Send me a code' : 'Sign in'}</button>
-        {msg && <p className={msg.startsWith('A 6') ? 'muted' : 'err'}>{msg}</p>}
+        <input type="email" placeholder="Email" value={f.email} onChange={set('email')} required />
+        <input type="password" placeholder="Password" value={f.password} onChange={set('password')} required />
+        <button>Sign in</button>
+        {msg && <p className="err">{msg}</p>}
       </form>
     )
   }
