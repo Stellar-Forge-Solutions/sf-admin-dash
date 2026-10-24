@@ -8,7 +8,38 @@ export default async function handler(req, res) {
   const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
 
   let query = db.from('shops')
-    .select('id,name,owner_name,mobile,whatsapp,email,city,business_type,ref_link,signup_product,status,created_at,review_due_at,entitlements(product,plan,trial_started_at,trial_ends_at,paid_until)')
+    .select(`
+      id,
+      name,
+      owner_name,
+      mobile,
+      whatsapp,
+      email,
+      city,
+      business_type,
+      ref_link,
+      signup_product,
+      status,
+      created_at,
+      review_due_at,
+      plan,
+      plan_start,
+      plan_renewal_date,
+      billing_cycle,
+      custom_order_limit,
+      overage_limit_rupees,
+      monthly_overage_limit,
+      entitlements (
+        product,
+        plan,
+        plan_tier,
+        overage_rate,
+        trial_started_at,
+        trial_ends_at,
+        paid_until,
+        billing_cycle
+      )
+    `)
     .is('deleted_at', null)
 
   if (statusParam && validStatuses.includes(statusParam)) {
