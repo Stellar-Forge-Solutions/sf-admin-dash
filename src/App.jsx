@@ -18,17 +18,17 @@ const REVIEW_TABS = [
 ]
 
 const PRODUCT_LABELS = {
-  billing: 'Billing',
-  expenses: 'Expense Tracker',
-  orders: 'Orders',
-  cafe: 'Cafe QR'
+  orders: 'Orders App',
+  billing: 'Billing App',
+  cafe: 'Cafe QR',
+  expenses: 'Expense Tracker'
 }
 
 export default function App() {
   const [stage, setStage] = useState('password') // password | in
   const [f, setF] = useState({ email: '', password: '' })
   const [msg, setMsg] = useState('')
-  const [page, setPage] = useState('table') // 'review' | 'table' | 'analytics'
+  const [page, setPage] = useState('table') // 'table' | 'product_stats' | 'users' | 'review' | 'analytics'
   const [reviewTab, setReviewTab] = useState('pending_review')
   const [shops, setShops] = useState(null)
   const [allShops, setAllShops] = useState(null)
@@ -38,6 +38,17 @@ export default function App() {
   const [productFilter, setProductFilter] = useState('all')
   const [planFilter, setPlanFilter] = useState('all')
   const [updatingId, setUpdatingId] = useState(null)
+
+  // Users metrics state
+  const [usersData, setUsersData] = useState(null)
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  const [userActivityFilter, setUserActivityFilter] = useState('all')
+
+  // Product Stats state
+  const [selectedProduct, setSelectedProduct] = useState('orders')
+  const [productShopFilter, setProductShopFilter] = useState('all')
+  const [productStats, setProductStats] = useState(null)
+  const [loadingProdStats, setLoadingProdStats] = useState(false)
 
   // Edit Modal State
   const [editModal, setEditModal] = useState({
@@ -70,7 +81,7 @@ export default function App() {
     setStage('in')
   }
 
-  // Load metrics from 0015 migration table
+  // Load metrics from live aggregation
   const loadMetrics = async () => {
     const r = await fetch('/api/admin/metrics')
     if (!r.ok) return
@@ -78,10 +89,40 @@ export default function App() {
     setMetricsData(json)
   }
 
+  // Load user activity metrics (DAU, WAU, MAU, staff, etc.)
+  const loadUsersMetrics = async () => {
+    setLoadingUsers(true)
+    const r = await fetch('/api/admin/users-metrics')
+    setLoadingUsers(false)
+    if (r.status === 401) return setStage('password')
+    if (!r.ok) return
+    const json = await r.json()
+    setUsersData(json)
+  }
+
+  // Load product-specific stats
+  const loadProductStats = async (prod = selectedProduct, sId = productShopFilter) => {
+    setLoadingProdStats(true)
+    let url = `/api/admin/product-stats?product=${prod}`
+    if (sId && sId !== 'all') {
+      url += `&shop_id=${sId}`
+    }
+    const r = await fetch(url)
+    setLoadingProdStats(false)
+    if (r.status === 401) return setStage('password')
+    if (!r.ok) return
+    const json = await r.json()
+    setProductStats(json)
+  }
+
   const reloadData = () => {
     loadReviews(reviewTab)
     loadAllShops()
     loadMetrics()
+    loadUsersMetrics()
+    if (page === 'product_stats') {
+      loadProductStats(selectedProduct, productShopFilter)
+    }
   }
 
   useEffect(() => {
@@ -90,20 +131,18 @@ export default function App() {
 
   useEffect(() => {
     if (stage !== 'in') return
-    if (page === 'review') loadReviews(reviewTab)
-    else {
+    if (page === 'review') {
+      loadReviews(reviewTab)
+    } else if (page === 'product_stats') {
+      loadProductStats(selectedProduct, productShopFilter)
+    } else if (page === 'users') {
+      loadUsersMetrics()
+    } else {
       loadAllShops()
       loadMetrics()
+      loadUsersMetrics()
     }
-    const t = setInterval(() => {
-      if (page === 'review') loadReviews(reviewTab)
-      else {
-        loadAllShops()
-        loadMetrics()
-      }
-    }, 60000)
-    return () => clearInterval(t)
-  }, [page, reviewTab, stage])
+  }, [page, reviewTab, selectedProduct, productShopFilter, stage])
 
   const login = async (e) => {
     e.preventDefault(); setMsg('')
@@ -171,7 +210,6 @@ export default function App() {
     }
   }
 
-  // Quick switch plan from dropdown directly
   const quickSwitchPlan = async (shop, newPlan) => {
     const curPlan = shop.plan || 'free'
     if (curPlan === newPlan) return
@@ -194,16 +232,18 @@ export default function App() {
 
   // Map of shop metrics from metricsData
   const shopMetricsMap = useMemo(() => {
+    if (metricsData?.shop_totals) return metricsData.shop_totals
     const map = {}
-    if (!metricsData?.all_metrics) return map
-    metricsData.all_metrics.forEach(m => {
-      if (!map[m.shop_id]) {
-        map[m.shop_id] = { orders: 0, revenue: 0, overage: 0 }
-      }
-      map[m.shop_id].orders += Number(m.orders_created) || 0
-      map[m.shop_id].revenue += Number(m.gross_revenue) || 0
-      map[m.shop_id].overage += Number(m.overage_amount) || 0
-    })
+    if (metricsData?.all_metrics) {
+      metricsData.all_metrics.forEach(m => {
+        if (!map[m.shop_id]) {
+          map[m.shop_id] = { orders: 0, revenue: 0, overage: 0 }
+        }
+        map[m.shop_id].orders += Number(m.orders_created) || 0
+        map[m.shop_id].revenue += Number(m.gross_revenue) || 0
+        map[m.shop_id].overage += Number(m.overage_amount) || 0
+      })
+    }
     return map
   }, [metricsData])
 
@@ -243,7 +283,6 @@ export default function App() {
     const pending = allShops.filter(s => s.status === 'pending_review').length
     const rejected = allShops.filter(s => s.status === 'rejected').length
 
-    // Product breakdown across all entitlements
     const products = { billing: 0, expenses: 0, orders: 0, cafe: 0 }
     allShops.forEach(s => {
       const activeProducts = new Set()
@@ -254,25 +293,20 @@ export default function App() {
       })
     })
 
-    // Plan breakdown
     const plans = { free: 0, basic: 0, pro: 0 }
     allShops.forEach(s => {
       const p = s.plan || 'free'
       plans[p] = (plans[p] || 0) + 1
     })
 
-    // City breakdown (top 8)
     const cityMap = {}
     allShops.forEach(s => {
       const c = (s.city || 'Not specified').trim()
       const formatted = c.charAt(0).toUpperCase() + c.slice(1).toLowerCase()
       cityMap[formatted] = (cityMap[formatted] || 0) + 1
     })
-    const topCities = Object.entries(cityMap)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
+    const topCities = Object.entries(cityMap).sort((a, b) => b[1] - a[1]).slice(0, 8)
 
-    // Growth: last 7 days vs 30 days
     const now = Date.now()
     const ms7d = 7 * 86400000
     const ms30d = 30 * 86400000
@@ -300,6 +334,8 @@ export default function App() {
         <div className="brand"><b>Stellar <span>Forge</span> Admin</b></div>
         <div className="nav-links">
           <button className={`nav-btn ${page === 'table' ? 'active' : ''}`} onClick={() => setPage('table')}>All Shops</button>
+          <button className={`nav-btn ${page === 'users' ? 'active' : ''}`} onClick={() => setPage('users')}>User Metrics (DAU/MAU)</button>
+          <button className={`nav-btn ${page === 'product_stats' ? 'active' : ''}`} onClick={() => setPage('product_stats')}>Product Stats</button>
           <button className={`nav-btn ${page === 'review' ? 'active' : ''}`} onClick={() => setPage('review')}>Review Queue</button>
           <button className={`nav-btn ${page === 'analytics' ? 'active' : ''}`} onClick={() => setPage('analytics')}>Analytics</button>
           <button className="alt sm" onClick={() => { document.cookie = 'sf_admin=; Max-Age=0; Path=/'; setStage('password') }}>Sign out</button>
@@ -376,8 +412,8 @@ export default function App() {
                 </select>
                 <select value={productFilter} onChange={(e) => setProductFilter(e.target.value)}>
                   <option value="all">All Products</option>
-                  <option value="orders">Orders</option>
-                  <option value="billing">Billing</option>
+                  <option value="orders">Orders App</option>
+                  <option value="billing">Billing App</option>
                   <option value="expenses">Expense Tracker</option>
                   <option value="cafe">Cafe QR</option>
                 </select>
@@ -485,10 +521,19 @@ export default function App() {
                             </div>
                           </td>
                           <td>
-                            <b>{m.orders.toLocaleString()}</b>
+                            <b>{(m.orders || 0).toLocaleString()}</b>
+                            {m.breakdown && (m.breakdown.orders_count > 0 || m.breakdown.bills_count > 0 || m.breakdown.cafe_count > 0) && (
+                              <div className="muted" style={{ fontSize: '0.72rem' }}>
+                                {[
+                                  m.breakdown.orders_count ? `${m.breakdown.orders_count} ord` : '',
+                                  m.breakdown.bills_count ? `${m.breakdown.bills_count} bills` : '',
+                                  m.breakdown.cafe_count ? `${m.breakdown.cafe_count} cafe` : ''
+                                ].filter(Boolean).join(' · ')}
+                              </div>
+                            )}
                           </td>
                           <td>
-                            <b style={{ color: 'var(--teal-d)' }}>₹{Math.round(m.revenue).toLocaleString()}</b>
+                            <b style={{ color: 'var(--teal-d)' }}>₹{Math.round(m.revenue || 0).toLocaleString()}</b>
                             {m.overage > 0 && (
                               <div className="muted" style={{ fontSize: '0.72rem', color: 'var(--purple)' }}>
                                 +₹{Math.round(m.overage)} fee
@@ -554,7 +599,555 @@ export default function App() {
           </section>
         )}
 
-        {/* 2. EXISTING REVIEW FOR APPROVAL PAGE */}
+        {/* 2. USER METRICS PAGE (DAU / WAU / MAU / TOTAL USERS) */}
+        {page === 'users' && (
+          <section>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Active & Registered Users Overview</h2>
+              <button className="alt sm" onClick={loadUsersMetrics}>↻ Refresh</button>
+            </div>
+
+            {loadingUsers && !usersData ? (
+              <div style={{ padding: '36px', textAlign: 'center' }}>Loading user metrics…</div>
+            ) : !usersData ? (
+              <div style={{ padding: '36px', textAlign: 'center' }} className="muted">No user data available.</div>
+            ) : (
+              <>
+                {/* User KPI Cards */}
+                <div className="analytics-grid">
+                  <div className="stat-card">
+                    <span className="label">Total Registered Accounts</span>
+                    <span className="value">{usersData.kpis.total_users.toLocaleString()}</span>
+                    <span className="subtext">
+                      {usersData.kpis.total_owners} Owners · {usersData.kpis.total_staff} Staff
+                    </span>
+                  </div>
+
+                  <div className="stat-card">
+                    <span className="label">Daily Active Users (DAU)</span>
+                    <span className="value" style={{ color: 'var(--teal-d)' }}>
+                      {usersData.kpis.dau.toLocaleString()}
+                    </span>
+                    <span className="subtext">
+                      Active across {usersData.kpis.dau_shops} shops today
+                    </span>
+                  </div>
+
+                  <div className="stat-card">
+                    <span className="label">Weekly Active Users (WAU)</span>
+                    <span className="value" style={{ color: 'var(--blue)' }}>
+                      {usersData.kpis.wau.toLocaleString()}
+                    </span>
+                    <span className="subtext">
+                      Active across {usersData.kpis.wau_shops} shops (last 7d)
+                    </span>
+                  </div>
+
+                  <div className="stat-card">
+                    <span className="label">Monthly Active Users (MAU)</span>
+                    <span className="value" style={{ color: 'var(--purple)' }}>
+                      {usersData.kpis.mau.toLocaleString()}
+                    </span>
+                    <span className="subtext">
+                      Stickiness (DAU/MAU): {usersData.kpis.stickiness_ratio}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Additional Insight Row */}
+                <div className="analytics-grid" style={{ marginBottom: 18 }}>
+                  <div className="stat-card" style={{ padding: '12px 18px' }}>
+                    <span className="label">New User Registrations (30d)</span>
+                    <span className="value" style={{ fontSize: '1.4rem' }}>+{usersData.kpis.new_users_30d}</span>
+                    <span className="subtext">Joined this month</span>
+                  </div>
+                  <div className="stat-card" style={{ padding: '12px 18px' }}>
+                    <span className="label">New Users Today</span>
+                    <span className="value" style={{ fontSize: '1.4rem', color: 'var(--success)' }}>+{usersData.kpis.new_users_today}</span>
+                    <span className="subtext">Onboarded in last 24h</span>
+                  </div>
+                  <div className="stat-card" style={{ padding: '12px 18px' }}>
+                    <span className="label">Active Shops (30d)</span>
+                    <span className="value" style={{ fontSize: '1.4rem', color: 'var(--teal-d)' }}>{usersData.kpis.mau_shops}</span>
+                    <span className="subtext">Of {usersData.kpis.total_owners} onboarded shops</span>
+                  </div>
+                  <div className="stat-card" style={{ padding: '12px 18px' }}>
+                    <span className="label">Platform Staff Ratio</span>
+                    <span className="value" style={{ fontSize: '1.4rem' }}>
+                      {usersData.kpis.total_owners ? (usersData.kpis.total_staff / usersData.kpis.total_owners).toFixed(2) : 0}
+                    </span>
+                    <span className="subtext">Avg staff members per shop</span>
+                  </div>
+                </div>
+
+                {/* Per-Shop Activity Table */}
+                <div style={{ marginTop: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                    <h3 style={{ margin: 0, fontSize: '1.05rem' }}>User Engagement & Recency by Shop</h3>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <select
+                        style={{ width: 'auto', margin: 0, padding: '4px 8px', fontSize: '0.82rem' }}
+                        value={userActivityFilter}
+                        onChange={(e) => setUserActivityFilter(e.target.value)}
+                      >
+                        <option value="all">All Activity Levels</option>
+                        <option value="active_today">Active Today (DAU)</option>
+                        <option value="active_this_week">Active This Week (WAU)</option>
+                        <option value="active_this_month">Active This Month (MAU)</option>
+                        <option value="inactive">Inactive &gt; 30 days</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="table-container">
+                    <table className="shops-table">
+                      <thead>
+                        <tr>
+                          <th>Shop & Owner</th>
+                          <th>City</th>
+                          <th>Total Users Linked</th>
+                          <th>Activity Status</th>
+                          <th>Last Active (IST)</th>
+                          <th>Actions Today</th>
+                          <th>Actions (30 Days)</th>
+                          <th>Staff Details</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(usersData.shops_activity || [])
+                          .filter(s => {
+                            if (userActivityFilter === 'all') return true
+                            return s.activity_status === userActivityFilter
+                          })
+                          .map(s => {
+                            return (
+                              <tr key={s.shop_id}>
+                                <td>
+                                  <b>{s.shop_name}</b>
+                                  <div className="muted">{s.owner_name} · {s.owner_email}</div>
+                                </td>
+                                <td>{s.city || '—'}</td>
+                                <td>
+                                  <b>{s.total_accounts}</b>
+                                  <span className="muted" style={{ fontSize: '0.78rem' }}> (1 owner + {s.staff_count} staff)</span>
+                                </td>
+                                <td>
+                                  {s.activity_status === 'active_today' && (
+                                    <span className="badge badge-approved">Active Today</span>
+                                  )}
+                                  {s.activity_status === 'active_this_week' && (
+                                    <span className="badge badge-basic">Active This Week</span>
+                                  )}
+                                  {s.activity_status === 'active_this_month' && (
+                                    <span className="badge badge-warning">Active This Month</span>
+                                  )}
+                                  {s.activity_status === 'inactive' && (
+                                    <span className="badge badge-rejected">Dormant / Inactive</span>
+                                  )}
+                                </td>
+                                <td style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
+                                  {s.last_active ? (
+                                    <>
+                                      {new Date(s.last_active).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short' })}
+                                      <div className="muted">
+                                        {new Date(s.last_active).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })}
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <span className="muted">No recent events</span>
+                                  )}
+                                </td>
+                                <td>
+                                  <b style={{ color: s.actions_today > 0 ? 'var(--teal-d)' : 'inherit' }}>
+                                    {s.actions_today}
+                                  </b>
+                                </td>
+                                <td>
+                                  <b>{s.actions_30d.toLocaleString()}</b>
+                                </td>
+                                <td>
+                                  {s.staff && s.staff.length > 0 ? (
+                                    <div style={{ fontSize: '0.75rem' }}>
+                                      {s.staff.map(st => (
+                                        <div key={st.id}>• {st.name} ({st.email})</div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <span className="muted" style={{ fontSize: '0.75rem' }}>No staff accounts</span>
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
+        )}
+
+        {/* 3. DEDICATED PRODUCT STATS PAGE */}
+        {page === 'product_stats' && (
+          <section>
+            {/* Product Switcher Bar */}
+            <div className="product-tab-bar">
+              {['orders', 'billing', 'cafe', 'expenses'].map(pKey => (
+                <button
+                  key={pKey}
+                  className={`prod-tab-btn ${selectedProduct === pKey ? 'active' : ''}`}
+                  onClick={() => {
+                    setSelectedProduct(pKey)
+                    loadProductStats(pKey, productShopFilter)
+                  }}
+                >
+                  <span className={`badge badge-${pKey}`} style={{ marginRight: 6 }}>●</span>
+                  {PRODUCT_LABELS[pKey]}
+                </button>
+              ))}
+
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className="muted" style={{ fontSize: '0.85rem' }}>Filter by Shop:</span>
+                <select
+                  style={{ width: 'auto', margin: 0, padding: '6px 10px', fontSize: '0.85rem' }}
+                  value={productShopFilter}
+                  onChange={(e) => {
+                    setProductShopFilter(e.target.value)
+                    loadProductStats(selectedProduct, e.target.value)
+                  }}
+                >
+                  <option value="all">All Shops</option>
+                  {(allShops || []).map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.city || 'No City'})</option>
+                  ))}
+                </select>
+                <button className="alt sm" onClick={() => loadProductStats(selectedProduct, productShopFilter)}>↻ Refresh</button>
+              </div>
+            </div>
+
+            {loadingProdStats ? (
+              <div style={{ padding: '36px', textAlign: 'center' }}>Loading {PRODUCT_LABELS[selectedProduct]} statistics…</div>
+            ) : !productStats ? (
+              <div style={{ padding: '36px', textAlign: 'center' }} className="muted">No data available.</div>
+            ) : (
+              <>
+                {/* Product KPIs */}
+                <div className="analytics-grid" style={{ marginTop: 14 }}>
+                  {selectedProduct === 'orders' && (
+                    <>
+                      <div className="stat-card">
+                        <span className="label">Total Orders</span>
+                        <span className="value">{productStats.kpis.total_orders.toLocaleString()}</span>
+                        <span className="subtext">This Month: {productStats.kpis.month_orders}</span>
+                      </div>
+                      <div className="stat-card">
+                        <span className="label">Gross Sales Volume</span>
+                        <span className="value" style={{ color: 'var(--teal-d)' }}>₹{productStats.kpis.gross_revenue.toLocaleString()}</span>
+                        <span className="subtext">Avg Order: ₹{productStats.kpis.avg_order_value}</span>
+                      </div>
+                      <div className="stat-card">
+                        <span className="label">Delivered & Fulfilled</span>
+                        <span className="value" style={{ color: 'var(--success)' }}>{productStats.kpis.delivered_orders.toLocaleString()}</span>
+                        <span className="subtext">Fulfillment Rate: {productStats.kpis.fulfillment_rate}%</span>
+                      </div>
+                      <div className="stat-card">
+                        <span className="label">Customer Base</span>
+                        <span className="value" style={{ color: 'var(--purple)' }}>{productStats.kpis.total_customers.toLocaleString()}</span>
+                        <span className="subtext">Catalog Items: {productStats.kpis.total_catalog_products}</span>
+                      </div>
+                    </>
+                  )}
+
+                  {selectedProduct === 'billing' && (
+                    <>
+                      <div className="stat-card">
+                        <span className="label">Total Bills Generated</span>
+                        <span className="value">{productStats.kpis.total_bills.toLocaleString()}</span>
+                        <span className="subtext">This Month: {productStats.kpis.month_bills}</span>
+                      </div>
+                      <div className="stat-card">
+                        <span className="label">Total Invoiced Amount</span>
+                        <span className="value" style={{ color: 'var(--teal-d)' }}>₹{productStats.kpis.total_revenue.toLocaleString()}</span>
+                        <span className="subtext">Active: {productStats.kpis.active_bills} bills</span>
+                      </div>
+                      <div className="stat-card">
+                        <span className="label">Average Bill Size</span>
+                        <span className="value" style={{ color: 'var(--blue)' }}>₹{productStats.kpis.avg_bill_amount.toLocaleString()}</span>
+                        <span className="subtext">Discounts Given: ₹{productStats.kpis.total_discount.toLocaleString()}</span>
+                      </div>
+                      <div className="stat-card">
+                        <span className="label">Catalog Items</span>
+                        <span className="value" style={{ color: 'var(--purple)' }}>{productStats.kpis.catalog_items.toLocaleString()}</span>
+                        <span className="subtext">Active Product Inventory</span>
+                      </div>
+                    </>
+                  )}
+
+                  {selectedProduct === 'cafe' && (
+                    <>
+                      <div className="stat-card">
+                        <span className="label">Total Table Bills</span>
+                        <span className="value">{productStats.kpis.total_orders.toLocaleString()}</span>
+                        <span className="subtext">This Month: {productStats.kpis.month_orders}</span>
+                      </div>
+                      <div className="stat-card">
+                        <span className="label">Total Cafe Revenue</span>
+                        <span className="value" style={{ color: 'var(--teal-d)' }}>₹{productStats.kpis.total_sales.toLocaleString()}</span>
+                        <span className="subtext">Tax Collected: ₹{productStats.kpis.total_tax}</span>
+                      </div>
+                      <div className="stat-card">
+                        <span className="label">Dine-in Tables Active</span>
+                        <span className="value" style={{ color: 'var(--blue)' }}>{productStats.kpis.total_tables.toLocaleString()}</span>
+                        <span className="subtext">QR Ordering Share: {productStats.kpis.customer_qr_pct}%</span>
+                      </div>
+                      <div className="stat-card">
+                        <span className="label">Menu Dishes / Items</span>
+                        <span className="value" style={{ color: 'var(--purple)' }}>{productStats.kpis.total_menu_items.toLocaleString()}</span>
+                        <span className="subtext">Active Dishes & Categories</span>
+                      </div>
+                    </>
+                  )}
+
+                  {selectedProduct === 'expenses' && (
+                    <>
+                      <div className="stat-card">
+                        <span className="label">Total Recorded Sales</span>
+                        <span className="value" style={{ color: 'var(--teal-d)' }}>₹{productStats.kpis.total_sales.toLocaleString()}</span>
+                        <span className="subtext">Logged Transactions: {productStats.kpis.total_transactions}</span>
+                      </div>
+                      <div className="stat-card">
+                        <span className="label">Total Expenses & Purchases</span>
+                        <span className="value" style={{ color: 'var(--danger)' }}>₹{(productStats.kpis.total_expenses + productStats.kpis.total_purchases).toLocaleString()}</span>
+                        <span className="subtext">Expenses: ₹{productStats.kpis.total_expenses} · Purchases: ₹{productStats.kpis.total_purchases}</span>
+                      </div>
+                      <div className="stat-card">
+                        <span className="label">Calculated Net Margin</span>
+                        <span className="value" style={{ color: productStats.kpis.net_margin >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                          ₹{productStats.kpis.net_margin.toLocaleString()}
+                        </span>
+                        <span className="subtext">Sales minus Outflows</span>
+                      </div>
+                      <div className="stat-card">
+                        <span className="label">Khata / Lending Due</span>
+                        <span className="value" style={{ color: 'var(--warning)' }}>₹{productStats.kpis.lent_outstanding.toLocaleString()}</span>
+                        <span className="subtext">Total Lent: ₹{productStats.kpis.total_lent} · Staff: {productStats.kpis.active_staff}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Per-Shop Table for this Product */}
+                <div style={{ marginTop: 20 }}>
+                  <h3 style={{ margin: '0 0 10px 0', fontSize: '1.05rem' }}>
+                    Shop Performance & Usage: {PRODUCT_LABELS[selectedProduct]}
+                  </h3>
+
+                  <div className="table-container">
+                    <table className="shops-table">
+                      <thead>
+                        {selectedProduct === 'orders' && (
+                          <tr>
+                            <th>Shop</th>
+                            <th>City</th>
+                            <th>Plan</th>
+                            <th>Monthly Usage vs Quota</th>
+                            <th>Overage / Extra</th>
+                            <th>Total Orders</th>
+                            <th>Delivered</th>
+                            <th>Total Revenue</th>
+                            <th>Customers</th>
+                            <th>Actions</th>
+                          </tr>
+                        )}
+
+                        {selectedProduct === 'billing' && (
+                          <tr>
+                            <th>Shop</th>
+                            <th>City</th>
+                            <th>Plan</th>
+                            <th>Trial / Paid Status</th>
+                            <th>Total Bills</th>
+                            <th>Final Bills</th>
+                            <th>This Month</th>
+                            <th>Total Revenue</th>
+                            <th>Catalog Size</th>
+                            <th>Actions</th>
+                          </tr>
+                        )}
+
+                        {selectedProduct === 'cafe' && (
+                          <tr>
+                            <th>Shop</th>
+                            <th>City</th>
+                            <th>Plan</th>
+                            <th>Monthly Usage vs Quota</th>
+                            <th>Total Bills</th>
+                            <th>QR vs Staff</th>
+                            <th>Total Revenue</th>
+                            <th>Tax Collected</th>
+                            <th>Tables</th>
+                            <th>Actions</th>
+                          </tr>
+                        )}
+
+                        {selectedProduct === 'expenses' && (
+                          <tr>
+                            <th>Shop</th>
+                            <th>City</th>
+                            <th>Plan</th>
+                            <th>Transactions</th>
+                            <th>Sales Logged</th>
+                            <th>Expenses Logged</th>
+                            <th>Estimated Net Profit</th>
+                            <th>Khata Due</th>
+                            <th>Staff</th>
+                            <th>Actions</th>
+                          </tr>
+                        )}
+                      </thead>
+
+                      <tbody>
+                        {(productStats.shops_data || []).map(s => {
+                          const originalShop = (allShops || []).find(sh => sh.id === s.id)
+                          return (
+                            <tr key={s.id}>
+                              <td>
+                                <b>{s.name}</b>
+                                <div className="muted">{s.owner_name}</div>
+                              </td>
+                              <td>{s.city || '—'}</td>
+                              <td>
+                                <span className={`badge badge-${s.plan}`}>
+                                  {s.plan?.toUpperCase()}
+                                </span>
+                              </td>
+
+                              {selectedProduct === 'orders' && (
+                                <>
+                                  <td>
+                                    <div style={{ width: 150 }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: 2 }}>
+                                        <span>{s.month_orders} / {s.quota === 999999 ? '∞' : s.quota}</span>
+                                        <b>{s.quota === 999999 ? '0%' : `${s.quota_used_pct}%`}</b>
+                                      </div>
+                                      <div className="progress-bar-track">
+                                        <div
+                                          className={`progress-bar-fill ${s.quota_used_pct >= 100 ? 'danger' : (s.quota_used_pct >= 80 ? 'warning' : '')}`}
+                                          style={{ width: `${s.quota === 999999 ? 10 : s.quota_used_pct}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td>
+                                    {s.overage_orders > 0 ? (
+                                      <span className="badge badge-suspended">
+                                        +{s.overage_orders} (₹{s.overage_fee})
+                                      </span>
+                                    ) : (
+                                      <span className="muted" style={{ fontSize: '0.78rem' }}>None</span>
+                                    )}
+                                  </td>
+                                  <td><b>{s.total_orders.toLocaleString()}</b></td>
+                                  <td>
+                                    {s.delivered_orders}
+                                    <span className="muted" style={{ fontSize: '0.72rem', marginLeft: 4 }}>
+                                      ({s.total_orders ? Math.round((s.delivered_orders / s.total_orders) * 100) : 0}%)
+                                    </span>
+                                  </td>
+                                  <td><b style={{ color: 'var(--teal-d)' }}>₹{s.gross_revenue.toLocaleString()}</b></td>
+                                  <td>{s.customers_count}</td>
+                                </>
+                              )}
+
+                              {selectedProduct === 'billing' && (
+                                <>
+                                  <td>
+                                    {s.paid_until ? (
+                                      <span className="badge badge-approved">Paid</span>
+                                    ) : s.trial_ends_at ? (
+                                      <span className="badge badge-basic">Trial</span>
+                                    ) : (
+                                      <span className="muted" style={{ fontSize: '0.78rem' }}>Standard</span>
+                                    )}
+                                  </td>
+                                  <td><b>{s.total_bills}</b></td>
+                                  <td>{s.final_bills}</td>
+                                  <td>{s.month_bills}</td>
+                                  <td><b style={{ color: 'var(--teal-d)' }}>₹{s.revenue.toLocaleString()}</b></td>
+                                  <td>{s.items_count} items</td>
+                                </>
+                              )}
+
+                              {selectedProduct === 'cafe' && (
+                                <>
+                                  <td>
+                                    <div style={{ width: 140 }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: 2 }}>
+                                        <span>{s.month_orders} / {s.quota === 999999 ? '∞' : s.quota}</span>
+                                        <b>{s.quota === 999999 ? '0%' : `${s.quota_used_pct}%`}</b>
+                                      </div>
+                                      <div className="progress-bar-track">
+                                        <div
+                                          className={`progress-bar-fill ${s.quota_used_pct >= 100 ? 'danger' : ''}`}
+                                          style={{ width: `${s.quota === 999999 ? 10 : s.quota_used_pct}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td><b>{s.total_orders}</b></td>
+                                  <td>
+                                    <span className="muted" style={{ fontSize: '0.75rem' }}>QR: {s.qr_orders} · Staff: {s.staff_orders}</span>
+                                  </td>
+                                  <td><b style={{ color: 'var(--teal-d)' }}>₹{s.revenue.toLocaleString()}</b></td>
+                                  <td>₹{s.tax}</td>
+                                  <td>{s.tables_count} tables</td>
+                                </>
+                              )}
+
+                              {selectedProduct === 'expenses' && (
+                                <>
+                                  <td><b>{s.tx_count}</b></td>
+                                  <td><span style={{ color: 'var(--teal-d)' }}>₹{s.sales.toLocaleString()}</span></td>
+                                  <td><span style={{ color: 'var(--danger)' }}>₹{s.expenses.toLocaleString()}</span></td>
+                                  <td>
+                                    <b style={{ color: s.net_profit >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                                      ₹{s.net_profit.toLocaleString()}
+                                    </b>
+                                  </td>
+                                  <td>
+                                    {s.khata_due > 0 ? (
+                                      <span style={{ color: 'var(--warning)', fontWeight: 600 }}>₹{s.khata_due.toLocaleString()}</span>
+                                    ) : (
+                                      <span className="muted">₹0</span>
+                                    )}
+                                  </td>
+                                  <td>{s.staff_count}</td>
+                                </>
+                              )}
+
+                              <td>
+                                <button
+                                  className="alt sm"
+                                  onClick={() => originalShop && openPlanModal(originalShop)}
+                                  title="Edit plan & quotas"
+                                >
+                                  ⚙ Quota
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
+        )}
+
+        {/* 3. EXISTING REVIEW FOR APPROVAL PAGE */}
         {page === 'review' && (
           <section>
             <div className="tabs">
@@ -595,7 +1188,7 @@ export default function App() {
           </section>
         )}
 
-        {/* 3. ANALYTICS PAGE */}
+        {/* 4. ANALYTICS PAGE */}
         {page === 'analytics' && analytics && (
           <section>
             <div className="analytics-grid">
@@ -738,8 +1331,8 @@ export default function App() {
                   value={editModal.product}
                   onChange={(e) => onProductSelectChange(e.target.value)}
                 >
-                  <option value="orders">Orders</option>
-                  <option value="billing">Billing</option>
+                  <option value="orders">Orders App</option>
+                  <option value="billing">Billing App</option>
                   <option value="expenses">Expense Tracker</option>
                   <option value="cafe">Cafe QR</option>
                 </select>
