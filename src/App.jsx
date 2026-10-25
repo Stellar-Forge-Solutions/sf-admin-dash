@@ -354,42 +354,42 @@ export default function App() {
         {page === 'table' && (
           <section>
             {/* Top Revenue & Orders quick highlight */}
-            {metricsData?.totals && (
+            {metricsData?.totals?.all_time && (
               <div className="analytics-grid" style={{ marginBottom: 16 }}>
                 <div className="stat-card" style={{ padding: '14px 18px' }}>
                   <span className="label">Total Orders Processed</span>
                   <span className="value" style={{ fontSize: '1.6rem' }}>
-                    {metricsData.totals.all_time.orders_created.toLocaleString()}
+                    {(metricsData.totals.all_time.orders_created || 0).toLocaleString()}
                   </span>
                   <span className="subtext">
-                    This month: {metricsData.totals.current_month.orders_created.toLocaleString()}
+                    This month: {(metricsData.totals.current_month?.orders_created || 0).toLocaleString()}
                   </span>
                 </div>
                 <div className="stat-card" style={{ padding: '14px 18px' }}>
                   <span className="label">Total Gross Revenue</span>
                   <span className="value" style={{ fontSize: '1.6rem', color: 'var(--teal-d)' }}>
-                    ₹{Math.round(metricsData.totals.all_time.gross_revenue).toLocaleString()}
+                    ₹{Math.round(metricsData.totals.all_time.gross_revenue || 0).toLocaleString()}
                   </span>
                   <span className="subtext">
-                    This month: ₹{Math.round(metricsData.totals.current_month.gross_revenue).toLocaleString()}
+                    This month: ₹{Math.round(metricsData.totals.current_month?.gross_revenue || 0).toLocaleString()}
                   </span>
                 </div>
                 <div className="stat-card" style={{ padding: '14px 18px' }}>
                   <span className="label">Collected Revenue</span>
                   <span className="value" style={{ fontSize: '1.6rem', color: 'var(--success)' }}>
-                    ₹{Math.round(metricsData.totals.all_time.collected_revenue).toLocaleString()}
+                    ₹{Math.round(metricsData.totals.all_time.collected_revenue || 0).toLocaleString()}
                   </span>
                   <span className="subtext">
-                    Outstanding: ₹{Math.round(metricsData.totals.all_time.outstanding).toLocaleString()}
+                    Outstanding: ₹{Math.round(metricsData.totals.all_time.outstanding || 0).toLocaleString()}
                   </span>
                 </div>
                 <div className="stat-card" style={{ padding: '14px 18px' }}>
                   <span className="label">Platform Overage Billed</span>
                   <span className="value" style={{ fontSize: '1.6rem', color: 'var(--purple)' }}>
-                    ₹{Math.round(metricsData.totals.all_time.overage_amount).toLocaleString()}
+                    ₹{Math.round(metricsData.totals.all_time.overage_amount || 0).toLocaleString()}
                   </span>
                   <span className="subtext">
-                    This month: ₹{Math.round(metricsData.totals.current_month.overage_amount).toLocaleString()}
+                    This month: ₹{Math.round(metricsData.totals.current_month?.overage_amount || 0).toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -617,39 +617,39 @@ export default function App() {
                 <div className="analytics-grid">
                   <div className="stat-card">
                     <span className="label">Total Registered Accounts</span>
-                    <span className="value">{usersData.kpis.total_users.toLocaleString()}</span>
+                    <span className="value">{(usersData.kpis?.total_users || 0).toLocaleString()}</span>
                     <span className="subtext">
-                      {usersData.kpis.total_owners} Owners · {usersData.kpis.total_staff} Staff
+                      {usersData.kpis?.total_owners || 0} Owners · {usersData.kpis?.total_staff || 0} Staff
                     </span>
                   </div>
 
                   <div className="stat-card">
                     <span className="label">Daily Active Users (DAU)</span>
                     <span className="value" style={{ color: 'var(--teal-d)' }}>
-                      {usersData.kpis.dau.toLocaleString()}
+                      {(usersData.kpis?.dau || 0).toLocaleString()}
                     </span>
                     <span className="subtext">
-                      Active across {usersData.kpis.dau_shops} shops today
+                      Active across {usersData.kpis?.dau_shops || 0} shops today
                     </span>
                   </div>
 
                   <div className="stat-card">
                     <span className="label">Weekly Active Users (WAU)</span>
                     <span className="value" style={{ color: 'var(--blue)' }}>
-                      {usersData.kpis.wau.toLocaleString()}
+                      {(usersData.kpis?.wau || 0).toLocaleString()}
                     </span>
                     <span className="subtext">
-                      Active across {usersData.kpis.wau_shops} shops (last 7d)
+                      Active across {usersData.kpis?.wau_shops || 0} shops (last 7d)
                     </span>
                   </div>
 
                   <div className="stat-card">
                     <span className="label">Monthly Active Users (MAU)</span>
                     <span className="value" style={{ color: 'var(--purple)' }}>
-                      {usersData.kpis.mau.toLocaleString()}
+                      {(usersData.kpis?.mau || 0).toLocaleString()}
                     </span>
                     <span className="subtext">
-                      Stickiness (DAU/MAU): {usersData.kpis.stickiness_ratio}%
+                      Stickiness (DAU/MAU): {usersData.kpis?.stickiness_ratio || 0}%
                     </span>
                   </div>
                 </div>
@@ -763,7 +763,7 @@ export default function App() {
                                   </b>
                                 </td>
                                 <td>
-                                  <b>{s.actions_30d.toLocaleString()}</b>
+                                  <b>{(s.actions_30d || 0).toLocaleString()}</b>
                                 </td>
                                 <td>
                                   {s.staff && s.staff.length > 0 ? (
@@ -838,23 +838,23 @@ export default function App() {
                     <>
                       <div className="stat-card">
                         <span className="label">Total Orders</span>
-                        <span className="value">{productStats.kpis.total_orders.toLocaleString()}</span>
-                        <span className="subtext">This Month: {productStats.kpis.month_orders}</span>
+                        <span className="value">{(productStats.kpis?.total_orders || 0).toLocaleString()}</span>
+                        <span className="subtext">This Month: {productStats.kpis?.month_orders || 0}</span>
                       </div>
                       <div className="stat-card">
                         <span className="label">Gross Sales Volume</span>
-                        <span className="value" style={{ color: 'var(--teal-d)' }}>₹{productStats.kpis.gross_revenue.toLocaleString()}</span>
-                        <span className="subtext">Avg Order: ₹{productStats.kpis.avg_order_value}</span>
+                        <span className="value" style={{ color: 'var(--teal-d)' }}>₹{(productStats.kpis?.gross_revenue || 0).toLocaleString()}</span>
+                        <span className="subtext">Avg Order: ₹{productStats.kpis?.avg_order_value || 0}</span>
                       </div>
                       <div className="stat-card">
                         <span className="label">Delivered & Fulfilled</span>
-                        <span className="value" style={{ color: 'var(--success)' }}>{productStats.kpis.delivered_orders.toLocaleString()}</span>
-                        <span className="subtext">Fulfillment Rate: {productStats.kpis.fulfillment_rate}%</span>
+                        <span className="value" style={{ color: 'var(--success)' }}>{(productStats.kpis?.delivered_orders || 0).toLocaleString()}</span>
+                        <span className="subtext">Fulfillment Rate: {productStats.kpis?.fulfillment_rate || 0}%</span>
                       </div>
                       <div className="stat-card">
                         <span className="label">Customer Base</span>
-                        <span className="value" style={{ color: 'var(--purple)' }}>{productStats.kpis.total_customers.toLocaleString()}</span>
-                        <span className="subtext">Catalog Items: {productStats.kpis.total_catalog_products}</span>
+                        <span className="value" style={{ color: 'var(--purple)' }}>{(productStats.kpis?.total_customers || 0).toLocaleString()}</span>
+                        <span className="subtext">Catalog Items: {productStats.kpis?.total_catalog_products || 0}</span>
                       </div>
                     </>
                   )}
@@ -863,22 +863,22 @@ export default function App() {
                     <>
                       <div className="stat-card">
                         <span className="label">Total Bills Generated</span>
-                        <span className="value">{productStats.kpis.total_bills.toLocaleString()}</span>
-                        <span className="subtext">This Month: {productStats.kpis.month_bills}</span>
+                        <span className="value">{(productStats.kpis?.total_bills || 0).toLocaleString()}</span>
+                        <span className="subtext">This Month: {productStats.kpis?.month_bills || 0}</span>
                       </div>
                       <div className="stat-card">
                         <span className="label">Total Invoiced Amount</span>
-                        <span className="value" style={{ color: 'var(--teal-d)' }}>₹{productStats.kpis.total_revenue.toLocaleString()}</span>
-                        <span className="subtext">Active: {productStats.kpis.active_bills} bills</span>
+                        <span className="value" style={{ color: 'var(--teal-d)' }}>₹{(productStats.kpis?.total_revenue || 0).toLocaleString()}</span>
+                        <span className="subtext">Active: {productStats.kpis?.active_bills || 0} bills</span>
                       </div>
                       <div className="stat-card">
                         <span className="label">Average Bill Size</span>
-                        <span className="value" style={{ color: 'var(--blue)' }}>₹{productStats.kpis.avg_bill_amount.toLocaleString()}</span>
-                        <span className="subtext">Discounts Given: ₹{productStats.kpis.total_discount.toLocaleString()}</span>
+                        <span className="value" style={{ color: 'var(--blue)' }}>₹{(productStats.kpis?.avg_bill_amount || 0).toLocaleString()}</span>
+                        <span className="subtext">Discounts Given: ₹{(productStats.kpis?.total_discount || 0).toLocaleString()}</span>
                       </div>
                       <div className="stat-card">
                         <span className="label">Catalog Items</span>
-                        <span className="value" style={{ color: 'var(--purple)' }}>{productStats.kpis.catalog_items.toLocaleString()}</span>
+                        <span className="value" style={{ color: 'var(--purple)' }}>{(productStats.kpis?.catalog_items || 0).toLocaleString()}</span>
                         <span className="subtext">Active Product Inventory</span>
                       </div>
                     </>
@@ -888,22 +888,22 @@ export default function App() {
                     <>
                       <div className="stat-card">
                         <span className="label">Total Table Bills</span>
-                        <span className="value">{productStats.kpis.total_orders.toLocaleString()}</span>
-                        <span className="subtext">This Month: {productStats.kpis.month_orders}</span>
+                        <span className="value">{(productStats.kpis?.total_orders || 0).toLocaleString()}</span>
+                        <span className="subtext">This Month: {productStats.kpis?.month_orders || 0}</span>
                       </div>
                       <div className="stat-card">
                         <span className="label">Total Cafe Revenue</span>
-                        <span className="value" style={{ color: 'var(--teal-d)' }}>₹{productStats.kpis.total_sales.toLocaleString()}</span>
-                        <span className="subtext">Tax Collected: ₹{productStats.kpis.total_tax}</span>
+                        <span className="value" style={{ color: 'var(--teal-d)' }}>₹{(productStats.kpis?.total_sales || 0).toLocaleString()}</span>
+                        <span className="subtext">Tax Collected: ₹{productStats.kpis?.total_tax || 0}</span>
                       </div>
                       <div className="stat-card">
                         <span className="label">Dine-in Tables Active</span>
-                        <span className="value" style={{ color: 'var(--blue)' }}>{productStats.kpis.total_tables.toLocaleString()}</span>
-                        <span className="subtext">QR Ordering Share: {productStats.kpis.customer_qr_pct}%</span>
+                        <span className="value" style={{ color: 'var(--blue)' }}>{(productStats.kpis?.total_tables || 0).toLocaleString()}</span>
+                        <span className="subtext">QR Ordering Share: {productStats.kpis?.customer_qr_pct || 0}%</span>
                       </div>
                       <div className="stat-card">
                         <span className="label">Menu Dishes / Items</span>
-                        <span className="value" style={{ color: 'var(--purple)' }}>{productStats.kpis.total_menu_items.toLocaleString()}</span>
+                        <span className="value" style={{ color: 'var(--purple)' }}>{(productStats.kpis?.total_menu_items || 0).toLocaleString()}</span>
                         <span className="subtext">Active Dishes & Categories</span>
                       </div>
                     </>
@@ -913,25 +913,25 @@ export default function App() {
                     <>
                       <div className="stat-card">
                         <span className="label">Total Recorded Sales</span>
-                        <span className="value" style={{ color: 'var(--teal-d)' }}>₹{productStats.kpis.total_sales.toLocaleString()}</span>
-                        <span className="subtext">Logged Transactions: {productStats.kpis.total_transactions}</span>
+                        <span className="value" style={{ color: 'var(--teal-d)' }}>₹{(productStats.kpis?.total_sales || 0).toLocaleString()}</span>
+                        <span className="subtext">Logged Transactions: {productStats.kpis?.total_transactions || 0}</span>
                       </div>
                       <div className="stat-card">
                         <span className="label">Total Expenses & Purchases</span>
-                        <span className="value" style={{ color: 'var(--danger)' }}>₹{(productStats.kpis.total_expenses + productStats.kpis.total_purchases).toLocaleString()}</span>
-                        <span className="subtext">Expenses: ₹{productStats.kpis.total_expenses} · Purchases: ₹{productStats.kpis.total_purchases}</span>
+                        <span className="value" style={{ color: 'var(--danger)' }}>₹{((productStats.kpis?.total_expenses || 0) + (productStats.kpis?.total_purchases || 0)).toLocaleString()}</span>
+                        <span className="subtext">Expenses: ₹{productStats.kpis?.total_expenses || 0} · Purchases: ₹{productStats.kpis?.total_purchases || 0}</span>
                       </div>
                       <div className="stat-card">
                         <span className="label">Calculated Net Margin</span>
-                        <span className="value" style={{ color: productStats.kpis.net_margin >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                          ₹{productStats.kpis.net_margin.toLocaleString()}
+                        <span className="value" style={{ color: (productStats.kpis?.net_margin || 0) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                          ₹{(productStats.kpis?.net_margin || 0).toLocaleString()}
                         </span>
                         <span className="subtext">Sales minus Outflows</span>
                       </div>
                       <div className="stat-card">
                         <span className="label">Khata / Lending Due</span>
-                        <span className="value" style={{ color: 'var(--warning)' }}>₹{productStats.kpis.lent_outstanding.toLocaleString()}</span>
-                        <span className="subtext">Total Lent: ₹{productStats.kpis.total_lent} · Staff: {productStats.kpis.active_staff}</span>
+                        <span className="value" style={{ color: 'var(--warning)' }}>₹{(productStats.kpis?.lent_outstanding || 0).toLocaleString()}</span>
+                        <span className="subtext">Total Lent: ₹{productStats.kpis?.total_lent || 0} · Staff: {productStats.kpis?.active_staff || 0}</span>
                       </div>
                     </>
                   )}
@@ -1048,15 +1048,15 @@ export default function App() {
                                       <span className="muted" style={{ fontSize: '0.78rem' }}>None</span>
                                     )}
                                   </td>
-                                  <td><b>{s.total_orders.toLocaleString()}</b></td>
+                                  <td><b>{(s.total_orders || 0).toLocaleString()}</b></td>
                                   <td>
-                                    {s.delivered_orders}
+                                    {s.delivered_orders || 0}
                                     <span className="muted" style={{ fontSize: '0.72rem', marginLeft: 4 }}>
                                       ({s.total_orders ? Math.round((s.delivered_orders / s.total_orders) * 100) : 0}%)
                                     </span>
                                   </td>
-                                  <td><b style={{ color: 'var(--teal-d)' }}>₹{s.gross_revenue.toLocaleString()}</b></td>
-                                  <td>{s.customers_count}</td>
+                                  <td><b style={{ color: 'var(--teal-d)' }}>₹{(s.gross_revenue || 0).toLocaleString()}</b></td>
+                                  <td>{s.customers_count || 0}</td>
                                 </>
                               )}
 
@@ -1071,11 +1071,11 @@ export default function App() {
                                       <span className="muted" style={{ fontSize: '0.78rem' }}>Standard</span>
                                     )}
                                   </td>
-                                  <td><b>{s.total_bills}</b></td>
-                                  <td>{s.final_bills}</td>
-                                  <td>{s.month_bills}</td>
-                                  <td><b style={{ color: 'var(--teal-d)' }}>₹{s.revenue.toLocaleString()}</b></td>
-                                  <td>{s.items_count} items</td>
+                                  <td><b>{s.total_bills || 0}</b></td>
+                                  <td>{s.final_bills || 0}</td>
+                                  <td>{s.month_bills || 0}</td>
+                                  <td><b style={{ color: 'var(--teal-d)' }}>₹{(s.revenue || 0).toLocaleString()}</b></td>
+                                  <td>{s.items_count || 0} items</td>
                                 </>
                               )}
 
@@ -1095,34 +1095,34 @@ export default function App() {
                                       </div>
                                     </div>
                                   </td>
-                                  <td><b>{s.total_orders}</b></td>
+                                  <td><b>{s.total_orders || 0}</b></td>
                                   <td>
-                                    <span className="muted" style={{ fontSize: '0.75rem' }}>QR: {s.qr_orders} · Staff: {s.staff_orders}</span>
+                                    <span className="muted" style={{ fontSize: '0.75rem' }}>QR: {s.qr_orders || 0} · Staff: {s.staff_orders || 0}</span>
                                   </td>
-                                  <td><b style={{ color: 'var(--teal-d)' }}>₹{s.revenue.toLocaleString()}</b></td>
-                                  <td>₹{s.tax}</td>
-                                  <td>{s.tables_count} tables</td>
+                                  <td><b style={{ color: 'var(--teal-d)' }}>₹{(s.revenue || 0).toLocaleString()}</b></td>
+                                  <td>₹{s.tax || 0}</td>
+                                  <td>{s.tables_count || 0} tables</td>
                                 </>
                               )}
 
                               {selectedProduct === 'expenses' && (
                                 <>
-                                  <td><b>{s.tx_count}</b></td>
-                                  <td><span style={{ color: 'var(--teal-d)' }}>₹{s.sales.toLocaleString()}</span></td>
-                                  <td><span style={{ color: 'var(--danger)' }}>₹{s.expenses.toLocaleString()}</span></td>
+                                  <td><b>{s.tx_count || 0}</b></td>
+                                  <td><span style={{ color: 'var(--teal-d)' }}>₹{(s.sales || 0).toLocaleString()}</span></td>
+                                  <td><span style={{ color: 'var(--danger)' }}>₹{(s.expenses || 0).toLocaleString()}</span></td>
                                   <td>
-                                    <b style={{ color: s.net_profit >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                                      ₹{s.net_profit.toLocaleString()}
+                                    <b style={{ color: (s.net_profit || 0) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                                      ₹{(s.net_profit || 0).toLocaleString()}
                                     </b>
                                   </td>
                                   <td>
-                                    {s.khata_due > 0 ? (
-                                      <span style={{ color: 'var(--warning)', fontWeight: 600 }}>₹{s.khata_due.toLocaleString()}</span>
+                                    {(s.khata_due || s.khata_outstanding || 0) > 0 ? (
+                                      <span style={{ color: 'var(--warning)', fontWeight: 600 }}>₹{(s.khata_due || s.khata_outstanding || 0).toLocaleString()}</span>
                                     ) : (
                                       <span className="muted">₹0</span>
                                     )}
                                   </td>
-                                  <td>{s.staff_count}</td>
+                                  <td>{s.staff_count || 0}</td>
                                 </>
                               )}
 
