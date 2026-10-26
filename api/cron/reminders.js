@@ -1,6 +1,6 @@
 // Called every 10 minutes by .github/workflows/reminders.yml. Emails both admins about shops nearing/past their review time.
 import { createClient } from '@supabase/supabase-js'
-import { sendMail } from '../_lib/gmail.js'
+import { sendMail } from '../_lib/brevo.js'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 const hhmm = (d) => new Date(d).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })

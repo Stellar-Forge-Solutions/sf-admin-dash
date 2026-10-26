@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin } from '../_lib/adminSession.js'
-import { sendMail } from '../_lib/gmail.js'
+import { sendMail } from '../_lib/brevo.js'
 
 const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 

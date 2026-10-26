@@ -161,6 +161,27 @@ export default function App() {
     reloadData()
   }
 
+  const deleteShop = async (shop) => {
+    const promptText = `CAUTION: You are about to permanently delete "${shop.name}" and ALL its data (orders, bills, expenses, menu, staff, and auth login).\n\nTo confirm, type the shop name exactly: "${shop.name}"`
+    const userInput = prompt(promptText)
+    if (userInput !== shop.name) {
+      if (userInput !== null) {
+        alert('Shop name did not match. Deletion cancelled.')
+      }
+      return
+    }
+
+    setUpdatingId(shop.id)
+    const r = await post('/api/admin/delete-shop', { id: shop.id })
+    setUpdatingId(null)
+    if (r.ok) {
+      setMsg(`Shop "${shop.name}" and all associated data permanently deleted.`)
+      reloadData()
+    } else {
+      setMsg(r.error || 'Failed to delete shop')
+    }
+  }
+
   const openPlanModal = (shop) => {
     const defaultProduct = shop.signup_product || (shop.entitlements && shop.entitlements[0]?.product) || 'orders'
     const ent = (shop.entitlements || []).find(e => e.product === defaultProduct) || {}
@@ -584,6 +605,15 @@ export default function App() {
                                   <button className="bad sm" disabled={isBusy} onClick={() => act(s.id, 'reject')}>Reject</button>
                                 </>
                               )}
+                              <button
+                                className="bad sm"
+                                disabled={isBusy}
+                                onClick={() => deleteShop(s)}
+                                title="Permanently delete this shop and all its data"
+                                style={{ background: '#b91c1c' }}
+                              >
+                                Delete
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1127,13 +1157,25 @@ export default function App() {
                               )}
 
                               <td>
-                                <button
-                                  className="alt sm"
-                                  onClick={() => originalShop && openPlanModal(originalShop)}
-                                  title="Edit plan & quotas"
-                                >
-                                  ⚙ Quota
-                                </button>
+                                <div style={{ display: 'flex', gap: 4 }}>
+                                  <button
+                                    className="alt sm"
+                                    onClick={() => originalShop && openPlanModal(originalShop)}
+                                    title="Edit plan & quotas"
+                                  >
+                                    ⚙ Quota
+                                  </button>
+                                  {originalShop && (
+                                    <button
+                                      className="bad sm"
+                                      onClick={() => deleteShop(originalShop)}
+                                      title="Permanently delete this shop and all its data"
+                                      style={{ background: '#b91c1c' }}
+                                    >
+                                      Delete
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           )
@@ -1181,6 +1223,14 @@ export default function App() {
                     )}
                     {s.status === 'approved' && <button className="bad" onClick={() => act(s.id, 'suspend')}>Suspend</button>}
                     {s.status === 'suspended' && <button onClick={() => act(s.id, 'reinstate')}>Reinstate</button>}
+                    <button
+                      className="bad"
+                      onClick={() => deleteShop(s)}
+                      style={{ background: '#b91c1c' }}
+                      title="Permanently delete this shop and all its data"
+                    >
+                      Delete Shop
+                    </button>
                   </div>
                 </div>
               ))
