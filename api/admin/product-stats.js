@@ -132,9 +132,10 @@ export default async function handler(req, res) {
       const curPlan = ent.plan_tier || ent.plan || s.plan || 'free'
       const quota = s.custom_order_limit !== null && s.custom_order_limit !== undefined
         ? s.custom_order_limit
-        : (curPlan === 'pro' ? 999999 : (curPlan === 'basic' ? 300 : 100))
+        : (curPlan === 'pro' ? 999999 : 100)
 
-      const overageOrders = quota !== 999999 ? Math.max(0, stat.month_orders - quota) : 0
+      // Lifetime order cap: evaluate against total lifetime orders
+      const overageOrders = quota !== 999999 ? Math.max(0, stat.orders_count - quota) : 0
       const rate = ent.overage_rate !== null && ent.overage_rate !== undefined ? ent.overage_rate : 0.30
       const overageFee = Math.round(overageOrders * rate)
 
@@ -147,7 +148,7 @@ export default async function handler(req, res) {
         plan: curPlan,
         quota,
         month_orders: stat.month_orders,
-        quota_used_pct: quota && quota !== 999999 ? Math.min(100, Math.round((stat.month_orders / quota) * 100)) : 0,
+        quota_used_pct: quota && quota !== 999999 ? Math.min(100, Math.round((stat.orders_count / quota) * 100)) : 0,
         overage_orders: overageOrders,
         overage_fee: overageFee,
         total_orders: stat.orders_count,
@@ -330,7 +331,9 @@ export default async function handler(req, res) {
       const stat = shopStatsMap[s.id] || { total_orders: 0, month_orders: 0, revenue: 0, tax: 0, qr_orders: 0, staff_orders: 0 }
       const ent = (s.entitlements || []).find(e => e.product === 'cafe') || {}
       const curPlan = ent.plan_tier || ent.plan || s.plan || 'free'
-      const quota = curPlan === 'pro' ? 999999 : (curPlan === 'basic' ? 600 : 300)
+      const quota = s.custom_order_limit !== null && s.custom_order_limit !== undefined
+        ? s.custom_order_limit
+        : (curPlan === 'pro' ? 999999 : 100)
 
       return {
         id: s.id,
@@ -341,7 +344,7 @@ export default async function handler(req, res) {
         plan: curPlan,
         quota,
         month_orders: stat.month_orders,
-        quota_used_pct: quota !== 999999 ? Math.min(100, Math.round((stat.month_orders / quota) * 100)) : 0,
+        quota_used_pct: quota !== 999999 ? Math.min(100, Math.round((stat.total_orders / quota) * 100)) : 0,
         total_orders: stat.total_orders,
         qr_orders: stat.qr_orders,
         staff_orders: stat.staff_orders,

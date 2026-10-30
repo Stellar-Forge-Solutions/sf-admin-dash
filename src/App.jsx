@@ -50,6 +50,9 @@ export default function App() {
   const [productStats, setProductStats] = useState(null)
   const [loadingProdStats, setLoadingProdStats] = useState(false)
 
+  // Clear Shop Data Modal State
+  const [clearModal, setClearModal] = useState({ open: false, shop: null, confirm: '', loading: false, error: null })
+
   // Edit Modal State
   const [editModal, setEditModal] = useState({
     open: false,
@@ -179,6 +182,22 @@ export default function App() {
       reloadData()
     } else {
       setMsg(r.error || 'Failed to delete shop')
+    }
+  }
+
+  const clearAllData = async () => {
+    if (!clearModal.shop) return
+    if (clearModal.confirm !== clearModal.shop.name) {
+      return setClearModal(prev => ({ ...prev, error: `Type the shop name exactly: "${clearModal.shop.name}"` }))
+    }
+    setClearModal(prev => ({ ...prev, loading: true, error: null }))
+    const r = await post('/api/admin/clear-data', { shop_id: clearModal.shop.id, confirm_token: 'CLEAR_SHOP_DATA' })
+    setClearModal({ open: false, shop: null, confirm: '', loading: false, error: null })
+    if (r.ok) {
+      setMsg(`✅ All data for "${clearModal.shop?.name}" has been cleared.`)
+      reloadData()
+    } else {
+      setMsg('❌ ' + (r.message || r.error || 'Clear data failed.'))
     }
   }
 
@@ -534,8 +553,8 @@ export default function App() {
                           </td>
                           <td>
                             <div>
-                              <b>{s.custom_order_limit !== null && s.custom_order_limit !== undefined ? s.custom_order_limit : (curPlan === 'pro' ? 'Unlimited' : (curPlan === 'basic' ? '300' : '100'))}</b>
-                              <span className="muted" style={{ fontSize: '0.75rem' }}> free</span>
+                              <b>{s.custom_order_limit !== null && s.custom_order_limit !== undefined ? s.custom_order_limit : (curPlan === 'pro' ? 'Unlimited' : '100')}</b>
+                              <span className="muted" style={{ fontSize: '0.75rem' }}> lifetime free</span>
                             </div>
                             <div className="muted" style={{ fontSize: '0.75rem' }}>
                               Cap: ₹{s.overage_limit_rupees || s.monthly_overage_limit || 300}
@@ -613,6 +632,15 @@ export default function App() {
                                 style={{ background: '#b91c1c' }}
                               >
                                 Delete
+                              </button>
+                              <button
+                                className="bad sm"
+                                disabled={isBusy}
+                                onClick={() => setClearModal({ open: true, shop: s, confirm: '', loading: false, error: null })}
+                                title="Wipe all orders, bills, cafe data, and expenses for this shop (keeps shop & config)"
+                                style={{ background: '#92400e' }}
+                              >
+                                Clear Data
                               </button>
                             </div>
                           </td>
@@ -981,7 +1009,7 @@ export default function App() {
                             <th>Shop</th>
                             <th>City</th>
                             <th>Plan</th>
-                            <th>Monthly Usage vs Quota</th>
+                            <th>Lifetime Usage vs Quota</th>
                             <th>Overage / Extra</th>
                             <th>Total Orders</th>
                             <th>Delivered</th>
@@ -1011,7 +1039,7 @@ export default function App() {
                             <th>Shop</th>
                             <th>City</th>
                             <th>Plan</th>
-                            <th>Monthly Usage vs Quota</th>
+                            <th>Lifetime Usage vs Quota</th>
                             <th>Total Bills</th>
                             <th>QR vs Staff</th>
                             <th>Total Revenue</th>
@@ -1058,7 +1086,7 @@ export default function App() {
                                   <td>
                                     <div style={{ width: 150 }}>
                                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: 2 }}>
-                                        <span>{s.month_orders} / {s.quota === 999999 ? '∞' : s.quota}</span>
+                                        <span>{(s.total_orders || 0)} / {s.quota === 999999 ? '∞' : s.quota}</span>
                                         <b>{s.quota === 999999 ? '0%' : `${s.quota_used_pct}%`}</b>
                                       </div>
                                       <div className="progress-bar-track">
@@ -1114,7 +1142,7 @@ export default function App() {
                                   <td>
                                     <div style={{ width: 140 }}>
                                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: 2 }}>
-                                        <span>{s.month_orders} / {s.quota === 999999 ? '∞' : s.quota}</span>
+                                        <span>{(s.total_orders || 0)} / {s.quota === 999999 ? '∞' : s.quota}</span>
                                         <b>{s.quota === 999999 ? '0%' : `${s.quota_used_pct}%`}</b>
                                       </div>
                                       <div className="progress-bar-track">
@@ -1394,22 +1422,22 @@ export default function App() {
                   value={editModal.plan}
                   onChange={(e) => setEditModal(prev => ({ ...prev, plan: e.target.value }))}
                 >
-                  <option value="free">Free (Default 100 free orders)</option>
-                  <option value="basic">Basic (Default 300 free orders)</option>
+                  <option value="free">Free (Default 100 lifetime free orders)</option>
+                  <option value="basic">Basic (Default 100 lifetime free orders)</option>
                   <option value="pro">Pro (Unlimited / Custom)</option>
                 </select>
               </div>
 
               <div className="form-group">
-                <label>Custom Free Order Quota (custom_order_limit)</label>
+                <label>Custom Lifetime Free Order Quota (custom_order_limit)</label>
                 <input
                   type="number"
-                  placeholder="e.g. 150, 500 (blank = plan default)"
+                  placeholder="e.g. 150, 500 (blank = default 100)"
                   value={editModal.custom_order_limit}
                   onChange={(e) => setEditModal(prev => ({ ...prev, custom_order_limit: e.target.value }))}
                 />
                 <span className="muted" style={{ fontSize: '0.75rem' }}>
-                  Overrides the plan default quota. Leave blank to use plan default (100 for Free, 300 for Basic).
+                  Overrides the plan default lifetime quota. Leave blank to use default (100 free orders).
                 </span>
               </div>
 
@@ -1428,7 +1456,7 @@ export default function App() {
               </div>
 
               <div className="form-group">
-                <label>Monthly Overage Limit Cap (₹)</label>
+                <label>Overage Limit Cap (₹)</label>
                 <input
                   type="number"
                   placeholder="Default: 300"
@@ -1436,7 +1464,7 @@ export default function App() {
                   onChange={(e) => setEditModal(prev => ({ ...prev, overage_limit_rupees: e.target.value }))}
                 />
                 <span className="muted" style={{ fontSize: '0.75rem' }}>
-                  Safety cap on overage charges per month in rupees (e.g. 100, 300, 500).
+                  Safety cap on overage charges in rupees (e.g. 100, 300, 500).
                 </span>
               </div>
 
@@ -1453,6 +1481,55 @@ export default function App() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CLEAR SHOP DATA MODAL */}
+      {clearModal.open && clearModal.shop && (
+        <div className="modal-backdrop" onClick={() => !clearModal.loading && setClearModal({ open: false, shop: null, confirm: '', loading: false, error: null })}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ borderTop: '4px solid #92400e' }}>
+            <h3 style={{ color: '#92400e' }}>⚠️ Clear Data — {clearModal.shop.name}</h3>
+            <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginBottom: 12 }}>
+              This will permanently delete <strong>all orders, bills, cafe bills, transactions, lending records, menu items, and related storage files</strong> for <strong>{clearModal.shop.name}</strong>.
+            </p>
+            <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginBottom: 16 }}>
+              The shop account, staff, plan config, and login credentials will <strong>not</strong> be affected.
+            </p>
+            <div className="form-group">
+              <label style={{ color: '#92400e', fontWeight: 700 }}>
+                Type the shop name exactly: <code>{clearModal.shop.name}</code>
+              </label>
+              <input
+                type="text"
+                value={clearModal.confirm}
+                onChange={(e) => setClearModal(prev => ({ ...prev, confirm: e.target.value, error: null }))}
+                placeholder={clearModal.shop.name}
+                disabled={clearModal.loading}
+                autoFocus
+              />
+              {clearModal.error && (
+                <span style={{ color: 'var(--danger)', fontSize: '0.8rem' }}>{clearModal.error}</span>
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+              <button
+                type="button"
+                className="alt"
+                onClick={() => setClearModal({ open: false, shop: null, confirm: '', loading: false, error: null })}
+                disabled={clearModal.loading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                style={{ background: '#92400e', color: '#fff', border: 'none' }}
+                onClick={clearAllData}
+                disabled={clearModal.loading || clearModal.confirm !== clearModal.shop.name}
+              >
+                {clearModal.loading ? 'Clearing…' : '🗑 Clear Data'}
+              </button>
+            </div>
           </div>
         </div>
       )}
