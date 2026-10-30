@@ -534,8 +534,8 @@ export default function App() {
                           </td>
                           <td>
                             <div>
-                              <b>{s.custom_order_limit !== null && s.custom_order_limit !== undefined ? s.custom_order_limit : (curPlan === 'pro' ? 'Unlimited' : (curPlan === 'basic' ? '300' : '100'))}</b>
-                              <span className="muted" style={{ fontSize: '0.75rem' }}> free</span>
+                              <b>{s.custom_order_limit !== null && s.custom_order_limit !== undefined ? s.custom_order_limit : (curPlan === 'pro' ? 'Unlimited' : '100')}</b>
+                              <span className="muted" style={{ fontSize: '0.75rem' }}> lifetime free</span>
                             </div>
                             <div className="muted" style={{ fontSize: '0.75rem' }}>
                               Cap: ₹{s.overage_limit_rupees || s.monthly_overage_limit || 300}
@@ -981,7 +981,7 @@ export default function App() {
                             <th>Shop</th>
                             <th>City</th>
                             <th>Plan</th>
-                            <th>Monthly Usage vs Quota</th>
+                            <th>Lifetime Usage vs Quota</th>
                             <th>Overage / Extra</th>
                             <th>Total Orders</th>
                             <th>Delivered</th>
@@ -1011,7 +1011,7 @@ export default function App() {
                             <th>Shop</th>
                             <th>City</th>
                             <th>Plan</th>
-                            <th>Monthly Usage vs Quota</th>
+                            <th>Lifetime Usage vs Quota</th>
                             <th>Total Bills</th>
                             <th>QR vs Staff</th>
                             <th>Total Revenue</th>
@@ -1058,7 +1058,7 @@ export default function App() {
                                   <td>
                                     <div style={{ width: 150 }}>
                                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: 2 }}>
-                                        <span>{s.month_orders} / {s.quota === 999999 ? '∞' : s.quota}</span>
+                                        <span>{(s.total_orders || 0)} / {s.quota === 999999 ? '∞' : s.quota}</span>
                                         <b>{s.quota === 999999 ? '0%' : `${s.quota_used_pct}%`}</b>
                                       </div>
                                       <div className="progress-bar-track">
@@ -1114,7 +1114,7 @@ export default function App() {
                                   <td>
                                     <div style={{ width: 140 }}>
                                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: 2 }}>
-                                        <span>{s.month_orders} / {s.quota === 999999 ? '∞' : s.quota}</span>
+                                        <span>{(s.total_orders || 0)} / {s.quota === 999999 ? '∞' : s.quota}</span>
                                         <b>{s.quota === 999999 ? '0%' : `${s.quota_used_pct}%`}</b>
                                       </div>
                                       <div className="progress-bar-track">
@@ -1394,22 +1394,22 @@ export default function App() {
                   value={editModal.plan}
                   onChange={(e) => setEditModal(prev => ({ ...prev, plan: e.target.value }))}
                 >
-                  <option value="free">Free (Default 100 free orders)</option>
-                  <option value="basic">Basic (Default 300 free orders)</option>
+                  <option value="free">Free (Default 100 lifetime free orders)</option>
+                  <option value="basic">Basic (Default 100 lifetime free orders)</option>
                   <option value="pro">Pro (Unlimited / Custom)</option>
                 </select>
               </div>
 
               <div className="form-group">
-                <label>Custom Free Order Quota (custom_order_limit)</label>
+                <label>Custom Lifetime Free Order Quota (custom_order_limit)</label>
                 <input
                   type="number"
-                  placeholder="e.g. 150, 500 (blank = plan default)"
+                  placeholder="e.g. 150, 500 (blank = default 100)"
                   value={editModal.custom_order_limit}
                   onChange={(e) => setEditModal(prev => ({ ...prev, custom_order_limit: e.target.value }))}
                 />
                 <span className="muted" style={{ fontSize: '0.75rem' }}>
-                  Overrides the plan default quota. Leave blank to use plan default (100 for Free, 300 for Basic).
+                  Overrides the plan default lifetime quota. Leave blank to use default (100 free orders).
                 </span>
               </div>
 
@@ -1428,7 +1428,7 @@ export default function App() {
               </div>
 
               <div className="form-group">
-                <label>Monthly Overage Limit Cap (₹)</label>
+                <label>Overage Limit Cap (₹)</label>
                 <input
                   type="number"
                   placeholder="Default: 300"
@@ -1436,7 +1436,7 @@ export default function App() {
                   onChange={(e) => setEditModal(prev => ({ ...prev, overage_limit_rupees: e.target.value }))}
                 />
                 <span className="muted" style={{ fontSize: '0.75rem' }}>
-                  Safety cap on overage charges per month in rupees (e.g. 100, 300, 500).
+                  Safety cap on overage charges in rupees (e.g. 100, 300, 500).
                 </span>
               </div>
 
