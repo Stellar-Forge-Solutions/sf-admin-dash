@@ -50,6 +50,9 @@ export default function App() {
   const [productStats, setProductStats] = useState(null)
   const [loadingProdStats, setLoadingProdStats] = useState(false)
 
+  // Clear Shop Data Modal State
+  const [clearModal, setClearModal] = useState({ open: false, shop: null, confirm: '', loading: false, error: null })
+
   // Edit Modal State
   const [editModal, setEditModal] = useState({
     open: false,
@@ -179,6 +182,22 @@ export default function App() {
       reloadData()
     } else {
       setMsg(r.error || 'Failed to delete shop')
+    }
+  }
+
+  const clearAllData = async () => {
+    if (!clearModal.shop) return
+    if (clearModal.confirm !== clearModal.shop.name) {
+      return setClearModal(prev => ({ ...prev, error: `Type the shop name exactly: "${clearModal.shop.name}"` }))
+    }
+    setClearModal(prev => ({ ...prev, loading: true, error: null }))
+    const r = await post('/api/admin/clear-data', { shop_id: clearModal.shop.id, confirm_token: 'CLEAR_SHOP_DATA' })
+    setClearModal({ open: false, shop: null, confirm: '', loading: false, error: null })
+    if (r.ok) {
+      setMsg(`✅ All data for "${clearModal.shop?.name}" has been cleared.`)
+      reloadData()
+    } else {
+      setMsg('❌ ' + (r.message || r.error || 'Clear data failed.'))
     }
   }
 
@@ -613,6 +632,15 @@ export default function App() {
                                 style={{ background: '#b91c1c' }}
                               >
                                 Delete
+                              </button>
+                              <button
+                                className="bad sm"
+                                disabled={isBusy}
+                                onClick={() => setClearModal({ open: true, shop: s, confirm: '', loading: false, error: null })}
+                                title="Wipe all orders, bills, cafe data, and expenses for this shop (keeps shop & config)"
+                                style={{ background: '#92400e' }}
+                              >
+                                Clear Data
                               </button>
                             </div>
                           </td>
@@ -1453,6 +1481,55 @@ export default function App() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CLEAR SHOP DATA MODAL */}
+      {clearModal.open && clearModal.shop && (
+        <div className="modal-backdrop" onClick={() => !clearModal.loading && setClearModal({ open: false, shop: null, confirm: '', loading: false, error: null })}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ borderTop: '4px solid #92400e' }}>
+            <h3 style={{ color: '#92400e' }}>⚠️ Clear Data — {clearModal.shop.name}</h3>
+            <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginBottom: 12 }}>
+              This will permanently delete <strong>all orders, bills, cafe bills, transactions, lending records, menu items, and related storage files</strong> for <strong>{clearModal.shop.name}</strong>.
+            </p>
+            <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginBottom: 16 }}>
+              The shop account, staff, plan config, and login credentials will <strong>not</strong> be affected.
+            </p>
+            <div className="form-group">
+              <label style={{ color: '#92400e', fontWeight: 700 }}>
+                Type the shop name exactly: <code>{clearModal.shop.name}</code>
+              </label>
+              <input
+                type="text"
+                value={clearModal.confirm}
+                onChange={(e) => setClearModal(prev => ({ ...prev, confirm: e.target.value, error: null }))}
+                placeholder={clearModal.shop.name}
+                disabled={clearModal.loading}
+                autoFocus
+              />
+              {clearModal.error && (
+                <span style={{ color: 'var(--danger)', fontSize: '0.8rem' }}>{clearModal.error}</span>
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+              <button
+                type="button"
+                className="alt"
+                onClick={() => setClearModal({ open: false, shop: null, confirm: '', loading: false, error: null })}
+                disabled={clearModal.loading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                style={{ background: '#92400e', color: '#fff', border: 'none' }}
+                onClick={clearAllData}
+                disabled={clearModal.loading || clearModal.confirm !== clearModal.shop.name}
+              >
+                {clearModal.loading ? 'Clearing…' : '🗑 Clear Data'}
+              </button>
+            </div>
           </div>
         </div>
       )}
