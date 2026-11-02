@@ -389,6 +389,81 @@ table.shops-table tr:hover td {
   font-size: 0.82rem;
 }
 
+/* ==============================================================================
+   ORDER STAGES PIPELINE STYLING
+   ============================================================================== */
+.stage-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  gap: 10px;
+}
+.stage-pill-card {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.stage-pill-card:hover {
+  background: #fff;
+  border-color: var(--teal);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.stage-pill-card.selected {
+  background: #fff;
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--teal);
+}
+.stage-pill-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: capitalize;
+}
+.stage-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.stage-pill-count {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+/* Shop Row Stage Chips */
+.stages-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 220px;
+}
+.stage-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+.stage-tag-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
 footer { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 24px; }
 
 /* ==============================================================================

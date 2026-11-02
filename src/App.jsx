@@ -24,6 +24,16 @@ const PRODUCT_LABELS = {
   expenses: 'Expense Tracker'
 }
 
+const STAGE_CONFIG = {
+  received: { label: 'Received', color: 'var(--blue)', bg: 'var(--blue-light)', badge: 'badge-basic' },
+  processing: { label: 'Processing', color: 'var(--warning)', bg: 'var(--warning-light)', badge: 'badge-warning' },
+  ready: { label: 'Ready / Packed', color: 'var(--purple)', bg: 'var(--purple-light)', badge: 'badge-pro' },
+  shipped: { label: 'Shipped / Transit', color: 'var(--teal-d)', bg: 'var(--teal-light)', badge: 'badge-approved' },
+  delivered: { label: 'Delivered', color: 'var(--success)', bg: 'var(--success-light)', badge: 'badge-approved' },
+  cancelled: { label: 'Cancelled', color: 'var(--danger)', bg: 'var(--danger-light)', badge: 'badge-suspended' },
+  returned: { label: 'Returned', color: '#94a3b8', bg: '#f1f5f9', badge: 'badge-rejected' }
+}
+
 export default function App() {
   const [stage, setStage] = useState('password') // password | in
   const [f, setF] = useState({ email: '', password: '' })
@@ -50,6 +60,7 @@ export default function App() {
   const [productShopFilter, setProductShopFilter] = useState('all')
   const [productStats, setProductStats] = useState(null)
   const [loadingProdStats, setLoadingProdStats] = useState(false)
+  const [selectedStageFilter, setSelectedStageFilter] = useState('all')
 
   // Clear Shop Data Modal State
   const [clearModal, setClearModal] = useState({ open: false, shop: null, confirm: '', loading: false, error: null })
@@ -1005,6 +1016,55 @@ export default function App() {
                   )}
                 </div>
 
+                {/* Orders Lifecycle Stages Breakdown Section */}
+                {selectedProduct === 'orders' && productStats.breakdowns?.stages && (
+                  <div className="box" style={{ marginTop: 14, padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '0.98rem' }}>Order Pipeline by Stage</h4>
+                        <span className="muted" style={{ fontSize: '0.78rem' }}>Current active & completed orders distribution across all fulfillment stages</span>
+                      </div>
+                      {selectedStageFilter !== 'all' && (
+                        <button
+                          className="alt sm"
+                          onClick={() => setSelectedStageFilter('all')}
+                          style={{ margin: 0 }}
+                        >
+                          ✕ Clear Stage Filter ({selectedStageFilter})
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="stage-cards-grid">
+                      {Object.entries(productStats.breakdowns.stages).map(([stgKey, count]) => {
+                        const cfg = STAGE_CONFIG[stgKey] || {
+                          label: stgKey.charAt(0).toUpperCase() + stgKey.slice(1).replace('_', ' '),
+                          color: 'var(--ink2)',
+                          bg: '#f1f5f9',
+                          badge: 'badge-free'
+                        }
+                        const isSelected = selectedStageFilter === stgKey
+                        return (
+                          <div
+                            key={stgKey}
+                            className={`stage-pill-card ${isSelected ? 'selected' : ''}`}
+                            onClick={() => setSelectedStageFilter(prev => prev === stgKey ? 'all' : stgKey)}
+                            title={`Filter shops by stage: ${cfg.label}`}
+                          >
+                            <div className="stage-pill-header">
+                              <span className="stage-dot" style={{ background: cfg.color }} />
+                              <span className="stage-label">{cfg.label}</span>
+                            </div>
+                            <div className="stage-pill-count" style={{ color: cfg.color }}>
+                              {Number(count || 0).toLocaleString()}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Per-Shop Table for this Product */}
                 <div style={{ marginTop: 20 }}>
                   <h3 style={{ margin: '0 0 10px 0', fontSize: '1.05rem' }}>
@@ -1022,6 +1082,7 @@ export default function App() {
                             <th>Lifetime Usage vs Quota</th>
                             <th>Overage / Extra</th>
                             <th>Total Orders</th>
+                            <th>Stages Breakdown</th>
                             <th>Delivered</th>
                             <th>Total Revenue</th>
                             <th>Customers</th>
@@ -1076,7 +1137,10 @@ export default function App() {
                       </thead>
 
                       <tbody>
-                        {(productStats.shops_data || []).map(s => {
+                        {(productStats.shops_data || []).filter(s => {
+                          if (selectedStageFilter === 'all') return true
+                          return (s.stages && (s.stages[selectedStageFilter] || 0) > 0)
+                        }).map(s => {
                           const originalShop = (allShops || []).find(sh => sh.id === s.id)
                           return (
                             <tr key={s.id}>
@@ -1117,6 +1181,28 @@ export default function App() {
                                     )}
                                   </td>
                                   <td><b>{(s.total_orders || 0).toLocaleString()}</b></td>
+                                  <td>
+                                    {s.stages && Object.keys(s.stages).length > 0 ? (
+                                      <div className="stages-chip-list">
+                                        {Object.entries(s.stages).map(([stg, count]) => {
+                                          const cfg = STAGE_CONFIG[stg] || { label: stg, color: 'var(--ink)' }
+                                          return (
+                                            <span
+                                              key={stg}
+                                              className="stage-tag"
+                                              style={{ borderColor: cfg.color }}
+                                              title={`${cfg.label || stg}: ${count} orders`}
+                                            >
+                                              <span className="stage-tag-dot" style={{ background: cfg.color }} />
+                                              <b>{count}</b> {cfg.label?.slice(0, 4) || stg.slice(0, 4)}
+                                            </span>
+                                          )
+                                        })}
+                                      </div>
+                                    ) : (
+                                      <span className="muted" style={{ fontSize: '0.75rem' }}>—</span>
+                                    )}
+                                  </td>
                                   <td>
                                     {s.delivered_orders || 0}
                                     <span className="muted" style={{ fontSize: '0.72rem', marginLeft: 4 }}>
