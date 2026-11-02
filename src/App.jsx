@@ -28,6 +28,7 @@ export default function App() {
   const [stage, setStage] = useState('password') // password | in
   const [f, setF] = useState({ email: '', password: '' })
   const [msg, setMsg] = useState('')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [page, setPage] = useState('table') // 'table' | 'product_stats' | 'users' | 'review' | 'analytics'
   const [reviewTab, setReviewTab] = useState('pending_review')
   const [shops, setShops] = useState(null)
@@ -371,14 +372,23 @@ export default function App() {
   return (
     <>
       <header>
-        <div className="brand"><b>Stellar <span>Forge</span> Admin</b></div>
-        <div className="nav-links">
-          <button className={`nav-btn ${page === 'table' ? 'active' : ''}`} onClick={() => setPage('table')}>All Shops</button>
-          <button className={`nav-btn ${page === 'users' ? 'active' : ''}`} onClick={() => setPage('users')}>User Metrics (DAU/MAU)</button>
-          <button className={`nav-btn ${page === 'product_stats' ? 'active' : ''}`} onClick={() => setPage('product_stats')}>Product Stats</button>
-          <button className={`nav-btn ${page === 'review' ? 'active' : ''}`} onClick={() => setPage('review')}>Review Queue</button>
-          <button className={`nav-btn ${page === 'analytics' ? 'active' : ''}`} onClick={() => setPage('analytics')}>Analytics</button>
-          <button className="alt sm" onClick={() => { document.cookie = 'sf_admin=; Max-Age=0; Path=/'; setStage('password') }}>Sign out</button>
+        <div className="brand-bar">
+          <div className="brand"><b>Stellar <span>Forge</span> Admin</b></div>
+          <button
+            className="hamburger-btn"
+            onClick={() => setMobileMenuOpen(prev => !prev)}
+            aria-label="Toggle navigation menu"
+          >
+            {mobileMenuOpen ? '✕' : '☰'}
+          </button>
+        </div>
+        <div className={`nav-links ${mobileMenuOpen ? 'open' : ''}`}>
+          <button className={`nav-btn ${page === 'table' ? 'active' : ''}`} onClick={() => { setPage('table'); setMobileMenuOpen(false) }}>All Shops</button>
+          <button className={`nav-btn ${page === 'users' ? 'active' : ''}`} onClick={() => { setPage('users'); setMobileMenuOpen(false) }}>User Metrics (DAU/MAU)</button>
+          <button className={`nav-btn ${page === 'product_stats' ? 'active' : ''}`} onClick={() => { setPage('product_stats'); setMobileMenuOpen(false) }}>Product Stats</button>
+          <button className={`nav-btn ${page === 'review' ? 'active' : ''}`} onClick={() => { setPage('review'); setMobileMenuOpen(false) }}>Review Queue</button>
+          <button className={`nav-btn ${page === 'analytics' ? 'active' : ''}`} onClick={() => { setPage('analytics'); setMobileMenuOpen(false) }}>Analytics</button>
+          <button className="alt sm signout-btn" onClick={() => { document.cookie = 'sf_admin=; Max-Age=0; Path=/'; setStage('password'); setMobileMenuOpen(false) }}>Sign out</button>
         </div>
       </header>
 

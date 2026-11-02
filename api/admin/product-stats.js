@@ -44,6 +44,15 @@ export default async function handler(req, res) {
     if (shopId) orderQuery = orderQuery.eq('shop_id', shopId)
     const { data: orders } = await orderQuery
 
+    // Fetch append-only order usage ledger (from 0017_fix_ledger.sql)
+    let ledgerQuery = db.from('order_usage_ledger').select('shop_id, lifetime_count')
+    if (shopId) ledgerQuery = ledgerQuery.eq('shop_id', shopId)
+    const { data: ledgerData } = await ledgerQuery
+    const ledgerMap = {}
+    ;(ledgerData || []).forEach(l => {
+      ledgerMap[l.shop_id] = Number(l.lifetime_count) || 0
+    })
+
     let custQuery = db.from('order_customers').select('id, shop_id')
     if (shopId) custQuery = custQuery.eq('shop_id', shopId)
     const { data: customers } = await custQuery
@@ -107,7 +116,10 @@ export default async function handler(req, res) {
       prodCountMap[p.shop_id] = (prodCountMap[p.shop_id] || 0) + 1
     })
 
-    const totalOrdersCount = orders?.length || 0
+    const totalOrdersCount = Object.keys(ledgerMap).length > 0
+      ? (shopId ? (ledgerMap[shopId] || 0) : Object.values(ledgerMap).reduce((a, b) => a + b, 0))
+      : (orders?.length || 0)
+
     result.kpis = {
       total_orders: totalOrdersCount,
       delivered_orders: deliveredCount,
@@ -134,9 +146,12 @@ export default async function handler(req, res) {
         ? s.custom_order_limit
         : (curPlan === 'pro' ? 999999 : 100)
 
-      // Lifetime order cap: evaluate against total lifetime orders
-      const overageOrders = quota !== 999999 ? Math.max(0, stat.orders_count - quota) : 0
-      const rate = ent.overage_rate !== null && ent.overage_rate !== undefined ? ent.overage_rate : 0.30
+      // Lifetime order count from append-only ledger (falls back to existing active orders count)
+      const lifetimeOrders = ledgerMap[s.id] !== undefined ? ledgerMap[s.id] : stat.orders_count
+
+      // Lifetime order cap: evaluate against lifetime ledger orders
+      const overageOrders = quota !== 999999 ? Math.max(0, lifetimeOrders - quota) : 0
+      const rate = ent.overage_rate !== null && ent.overage_rate !== undefined ? ent.overage_rate : 0.50
       const overageFee = Math.round(overageOrders * rate)
 
       return {
@@ -148,10 +163,11 @@ export default async function handler(req, res) {
         plan: curPlan,
         quota,
         month_orders: stat.month_orders,
-        quota_used_pct: quota && quota !== 999999 ? Math.min(100, Math.round((stat.orders_count / quota) * 100)) : 0,
+        quota_used_pct: quota && quota !== 999999 ? Math.min(100, Math.round((lifetimeOrders / quota) * 100)) : 0,
         overage_orders: overageOrders,
         overage_fee: overageFee,
-        total_orders: stat.orders_count,
+        total_orders: lifetimeOrders,
+        active_orders: stat.orders_count,
         delivered_orders: stat.delivered_count,
         gross_revenue: Math.round(stat.gross),
         collected_revenue: Math.round(stat.collected),
