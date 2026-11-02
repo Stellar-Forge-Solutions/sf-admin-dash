@@ -94,7 +94,8 @@ export default async function handler(req, res) {
           month_orders: 0,
           gross: 0,
           collected: 0,
-          discount: 0
+          discount: 0,
+          stages: {}
         }
       }
       const sStat = shopStatsMap[o.shop_id]
@@ -104,6 +105,9 @@ export default async function handler(req, res) {
       sStat.discount += disc
       if (isDelivered) sStat.delivered_count += 1
       if (isThisMonth) sStat.month_orders += 1
+
+      const stgKey = o.stage_key || 'received'
+      sStat.stages[stgKey] = (sStat.stages[stgKey] || 0) + 1
     })
 
     const custCountMap = {}
@@ -139,7 +143,7 @@ export default async function handler(req, res) {
     }
 
     result.shops_data = (allShops || []).map(s => {
-      const stat = shopStatsMap[s.id] || { orders_count: 0, delivered_count: 0, month_orders: 0, gross: 0, collected: 0, discount: 0 }
+      const stat = shopStatsMap[s.id] || { orders_count: 0, delivered_count: 0, month_orders: 0, gross: 0, collected: 0, discount: 0, stages: {} }
       const ent = (s.entitlements || []).find(e => e.product === 'orders') || {}
       const curPlan = ent.plan_tier || ent.plan || s.plan || 'free'
       const quota = s.custom_order_limit !== null && s.custom_order_limit !== undefined
@@ -169,6 +173,7 @@ export default async function handler(req, res) {
         total_orders: lifetimeOrders,
         active_orders: stat.orders_count,
         delivered_orders: stat.delivered_count,
+        stages: stat.stages || {},
         gross_revenue: Math.round(stat.gross),
         collected_revenue: Math.round(stat.collected),
         customers_count: custCountMap[s.id] || 0,
