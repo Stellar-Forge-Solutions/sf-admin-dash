@@ -34,6 +34,9 @@ export default async function handler(req, res) {
   const CLEAR_TABLES = [
     // Orders App
     { table: 'orders', col: 'shop_id' },
+    { table: 'order_usage_ledger', col: 'shop_id' },
+    { table: 'order_usage_monthly', col: 'shop_id' },
+    { table: 'order_delete_log', col: 'shop_id' },
     { table: 'order_customers', col: 'shop_id' },
     { table: 'order_products', col: 'shop_id' },
     // Billing App

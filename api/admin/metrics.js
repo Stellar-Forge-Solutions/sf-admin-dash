@@ -31,7 +31,17 @@ export default async function handler(req, res) {
     .select('id, shop_id, total, status, created_at')
     .neq('status', 'cancelled')
 
-  // 4. Also fetch snapshot table for any overage calculations if available
+  // 4. Fetch append-only order usage ledger (from 0017_fix_ledger.sql)
+  const { data: ledgerData } = await db
+    .from('order_usage_ledger')
+    .select('shop_id, lifetime_count')
+
+  const ledgerMap = {}
+  ;(ledgerData || []).forEach(l => {
+    ledgerMap[l.shop_id] = Number(l.lifetime_count) || 0
+  })
+
+  // 5. Also fetch snapshot table for any overage calculations if available
   const { data: snapshotMetrics } = await db
     .from('shop_monthly_metrics')
     .select('shop_id, product, overage_amount, overage_orders')
@@ -165,6 +175,21 @@ export default async function handler(req, res) {
     shop.overage += ovAmt
     totals.all_time.overage_amount += ovAmt
   })
+
+  // Reconcile lifetime order count with append-only order_usage_ledger if present
+  let ledgerOrdersTotalDiff = 0
+  Object.keys(ledgerMap).forEach(shopId => {
+    const shop = ensureShop(shopId)
+    const ledgerCount = ledgerMap[shopId]
+    const liveOrdersCount = shop.breakdown.orders_count || 0
+    if (ledgerCount > liveOrdersCount) {
+      const diff = ledgerCount - liveOrdersCount
+      shop.orders += diff
+      shop.breakdown.orders_count = ledgerCount
+      ledgerOrdersTotalDiff += diff
+    }
+  })
+  totals.all_time.orders_created += ledgerOrdersTotalDiff
 
   totals.all_time.outstanding = Math.max(0, totals.all_time.gross_revenue - totals.all_time.collected_revenue)
   totals.current_month.outstanding = Math.max(0, totals.current_month.gross_revenue - totals.current_month.collected_revenue)
